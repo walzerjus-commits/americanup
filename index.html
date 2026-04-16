@@ -763,7 +763,33 @@ function goTo(id){document.querySelectorAll(".screen").forEach(s=>s.classList.re
 function updateUI(){const{nome,iniciais}=STATE.user;const h=new Date().getHours();const g=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";const fn=nome.split(" ")[0];const el=document.getElementById("greeting");if(el)el.textContent=g+", "+fn+"!";["user-avatar","profile-av"].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=iniciais;});const pn=document.getElementById("profile-name");if(pn)pn.textContent=nome;const learned=STATE.phrases.filter(p=>p.learned).length;const done=STATE.tasks.filter(t=>t.done).length;const pct=Math.round(done/STATE.tasks.length*100);["stat-prog","p-prog"].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=pct+"%";});["stat-frases","p-aprendidas"].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=learned;});["stat-streak","p-streak","streak-val"].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=STATE.streak;});const hb=document.getElementById("home-prog-bar");if(hb)hb.style.width=pct+"%";const ht=document.getElementById("home-prog-txt");if(ht)ht.textContent=pct+"% concluído";const f1b=document.getElementById("fase1-bar");if(f1b)f1b.style.width=pct+"%";const f1t=document.getElementById("fase1-txt");if(f1t)f1t.textContent=done+" de "+STATE.tasks.length+" tarefas";const dia=STATE.phrases[new Date().getDate()%STATE.phrases.length];const fd=document.getElementById("frase-dia-box");if(fd&&dia)fd.innerHTML=`<div class="frase-dia-label">Frase do dia</div><div class="frase-dia-en">"${dia.en}"</div><div class="frase-dia-pt">${dia.pt}</div><div class="frase-dia-pr">${dia.pr}</div><button class="btn-audio" style="margin-top:10px;border-color:rgba(255,255,255,.4);color:white;" onclick="falarFrase(this,\`${dia.en}\`)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg> Ouvir frase do dia</button>`;}
 function renderTasks(){const el=document.getElementById("task-list");if(!el)return;el.innerHTML=STATE.tasks.map((t,i)=>`<div class="task-item" onclick="toggleTask(${i})"><div class="task-check${t.done?" done":""}">${t.done?'<svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>':""}</div><div><div class="task-text${t.done?" done":""}">${t.t}</div><div class="task-tip">${t.tip}</div></div></div>`).join("");}
 function toggleTask(i){STATE.tasks[i].done=!STATE.tasks[i].done;renderTasks();updateUI();save();}
-function renderFilters(){const cats=["Todos",...new Set(STATE.phrases.map(p=>p.cat))];const cr=document.getElementById("cat-row");if(cr)cr.innerHTML=cats.map(c=>`<span class="cat-pill${c===STATE.activeCat?" active":""}" onclick="setCat('${c}')">${c}</span>`).join("");const niveis=["Todos","A1","A2","B1"];const nr=document.getElementById("nivel-row");if(nr)nr.innerHTML=niveis.map(n=>`<span class="nivel-chip${n===STATE.activeNivel?" active":""}" onclick="setNivel('${n}')">${n}</span>`).join("");}
+function renderFilters(){
+  var cats=["Todos"];
+  var seen={};
+  STATE.phrases.forEach(function(p){if(!seen[p.cat]){seen[p.cat]=true;cats.push(p.cat);}});
+  window._allCats=cats;
+  var cr=document.getElementById("cat-row");
+  if(cr){
+    var html="";
+    for(var i=0;i<cats.length;i++){
+      var c=cats[i];
+      html+='<span class="cat-pill'+(c===STATE.activeCat?" active":"")+'" data-idx="'+i+'" onclick="setCatByIdx(this)">' +c+'</span>';
+    }
+    cr.innerHTML=html;
+  }
+  var niveis=["Todos","A1","A2","B1"];
+  var nr=document.getElementById("nivel-row");
+  if(nr){
+    var h2="";
+    for(var j=0;j<niveis.length;j++){
+      var n=niveis[j];
+      h2+='<span class="nivel-chip'+(n===STATE.activeNivel?" active":"")+'" data-n="'+n+'" onclick="setNivelByEl(this)">'+n+'</span>';
+    }
+    nr.innerHTML=h2;
+  }
+}
+function setCatByIdx(el){var idx=parseInt(el.getAttribute("data-idx"));if(window._allCats&&window._allCats[idx]!==undefined)setCat(window._allCats[idx]);}
+function setNivelByEl(el){setNivel(el.getAttribute("data-n"));}
 function setCat(c){STATE.activeCat=c;renderFilters();renderPhrases();}
 function setNivel(n){STATE.activeNivel=n;renderFilters();renderPhrases();}
 function renderPhrases(){const q=(document.getElementById("search-inp")||{}).value||"";const filtered=STATE.phrases.filter(p=>{const mc=STATE.activeCat==="Todos"||p.cat===STATE.activeCat;const mn=STATE.activeNivel==="Todos"||p.nivel===STATE.activeNivel;const mq=!q||p.en.toLowerCase().includes(q.toLowerCase())||p.pt.toLowerCase().includes(q.toLowerCase());return mc&&mn&&mq;});const cnt=document.getElementById("phrase-count");if(cnt)cnt.textContent=filtered.length+" frases encontradas";const el=document.getElementById("phrase-list");if(!el)return;let html="";let lastCat="";filtered.forEach(p=>{const gi=STATE.phrases.findIndex(x=>x.id===p.id);if(p.cat!==lastCat&&STATE.activeCat==="Todos"){html+=`<div class="cat-header">${p.cat}</div>`;lastCat=p.cat;}html+=`<div class="phrase-card${p.learned?" learned":""}" onclick="togglePhrase(${gi})"><div class="phrase-en">${p.en}</div><div class="phrase-pt">${p.pt}</div><div class="phrase-pr">${p.pr}</div><div class="phrase-footer"><span class="phrase-nivel nivel-${p.nivel}">${p.nivel}</span><button class="btn-audio" data-texto="${p.en}" onclick="event.stopPropagation();falarFrase(this,this.dataset.texto)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg> Ouvir</button></div></div>`;});el.innerHTML=html;}
@@ -774,146 +800,146 @@ function renderAll(){renderTasks();renderFilters();renderPhrases();renderRoutine
 
 const DICIONARIO = [
 // ─── TÉCNICO — TI ───
-{en:"algorithm",pt:"algoritmo",ex:"The algorithm sorts data efficiently.",tags:["técnico","TI"],pr:"élgoritm"},
-{en:"application",pt:"aplicativo / aplicação",ex:"Download the application from the store.",tags:["técnico","TI"],pr:"éplikêishon"},
-{en:"artificial intelligence",pt:"inteligência artificial",ex:"AI is changing the world.",tags:["técnico","TI"],pr:"artífishel intélídjens"},
-{en:"authentication",pt:"autenticação",ex:"Two-factor authentication is required.",tags:["técnico","TI"],pr:"ótentikêishon"},
-{en:"bandwidth",pt:"largura de banda",ex:"We need more bandwidth for video calls.",tags:["técnico","TI"],pr:"bénd-uídth"},
-{en:"bug",pt:"erro / falha no código",ex:"There's a bug in the system.",tags:["técnico","TI"],pr:"bág"},
-{en:"cloud computing",pt:"computação em nuvem",ex:"We store data in the cloud.",tags:["técnico","TI"],pr:"kláud kompíuting"},
-{en:"cybersecurity",pt:"cibersegurança",ex:"Cybersecurity is critical for businesses.",tags:["técnico","TI"],pr:"sáibersikiúriti"},
-{en:"database",pt:"banco de dados",ex:"The database stores user information.",tags:["técnico","TI"],pr:"dêitabêis"},
-{en:"encryption",pt:"criptografia",ex:"Encryption protects your data.",tags:["técnico","TI"],pr:"enkríption"},
-{en:"firewall",pt:"firewall / barreira de proteção",ex:"The firewall blocked the attack.",tags:["técnico","TI"],pr:"fáieruól"},
-{en:"framework",pt:"estrutura de desenvolvimento",ex:"React is a popular framework.",tags:["técnico","TI"],pr:"frêimuérk"},
-{en:"hardware",pt:"equipamento físico",ex:"We need to upgrade the hardware.",tags:["técnico","TI"],pr:"hárd-uêr"},
-{en:"interface",pt:"interface",ex:"The user interface is intuitive.",tags:["técnico","TI"],pr:"ínterfêis"},
-{en:"malware",pt:"software malicioso / vírus",ex:"The malware infected the system.",tags:["técnico","TI"],pr:"mélwêr"},
-{en:"network",pt:"rede",ex:"Connect to the corporate network.",tags:["técnico","TI"],pr:"nétuérk"},
-{en:"operating system",pt:"sistema operacional",ex:"Windows is an operating system.",tags:["técnico","TI"],pr:"óperêiting sístem"},
-{en:"phishing",pt:"golpe por e-mail falso",ex:"Don't click on phishing links.",tags:["técnico","TI"],pr:"físhing"},
-{en:"programming language",pt:"linguagem de programação",ex:"Python is a programming language.",tags:["técnico","TI"],pr:"prôugrêming lénguidj"},
-{en:"server",pt:"servidor",ex:"The server is down.",tags:["técnico","TI"],pr:"sérvr"},
-{en:"software",pt:"software / programa",ex:"Install the latest software.",tags:["técnico","TI"],pr:"sóftouêr"},
-{en:"source code",pt:"código-fonte",ex:"The source code is on GitHub.",tags:["técnico","TI"],pr:"sórs kôud"},
-{en:"troubleshoot",pt:"diagnosticar e resolver problemas",ex:"Let me troubleshoot the issue.",tags:["técnico","TI"],pr:"trábulshuut"},
-{en:"update",pt:"atualização",ex:"Run the system update.",tags:["técnico","TI"],pr:"ápdêit"},
-{en:"virtual machine",pt:"máquina virtual",ex:"Run it in a virtual machine.",tags:["técnico","TI"],pr:"vérchuel mashín"},
+{en:"algorithm",pt:"algoritmo",ex:"The algorithm sorts data efficiently.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"élgoritm"},
+{en:"application",pt:"aplicativo / aplicação",ex:"Download the application from the store.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"éplikêishon"},
+{en:"artificial intelligence",pt:"inteligência artificial",ex:"AI is changing the world.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"artífishel intélídjens"},
+{en:"authentication",pt:"autenticação",ex:"Two-factor authentication is required.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"ótentikêishon"},
+{en:"bandwidth",pt:"largura de banda",ex:"We need more bandwidth for video calls.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"bénd-uídth"},
+{en:"bug",pt:"erro / falha no código",ex:"There's a bug in the system.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"bág"},
+{en:"cloud computing",pt:"computação em nuvem",ex:"We store data in the cloud.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"kláud kompíuting"},
+{en:"cybersecurity",pt:"cibersegurança",ex:"Cybersecurity is critical for businesses.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"sáibersikiúriti"},
+{en:"database",pt:"banco de dados",ex:"The database stores user information.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"dêitabêis"},
+{en:"encryption",pt:"criptografia",ex:"Encryption protects your data.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"enkríption"},
+{en:"firewall",pt:"firewall / barreira de proteção",ex:"The firewall blocked the attack.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"fáieruól"},
+{en:"framework",pt:"estrutura de desenvolvimento",ex:"React is a popular framework.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"frêimuérk"},
+{en:"hardware",pt:"equipamento físico",ex:"We need to upgrade the hardware.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"hárd-uêr"},
+{en:"interface",pt:"interface",ex:"The user interface is intuitive.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"ínterfêis"},
+{en:"malware",pt:"software malicioso / vírus",ex:"The malware infected the system.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"mélwêr"},
+{en:"network",pt:"rede",ex:"Connect to the corporate network.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"nétuérk"},
+{en:"operating system",pt:"sistema operacional",ex:"Windows is an operating system.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"óperêiting sístem"},
+{en:"phishing",pt:"golpe por e-mail falso",ex:"Don't click on phishing links.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"físhing"},
+{en:"programming language",pt:"linguagem de programação",ex:"Python is a programming language.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"prôugrêming lénguidj"},
+{en:"server",pt:"servidor",ex:"The server is down.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"sérvr"},
+{en:"software",pt:"software / programa",ex:"Install the latest software.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"sóftouêr"},
+{en:"source code",pt:"código-fonte",ex:"The source code is on GitHub.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"sórs kôud"},
+{en:"troubleshoot",pt:"diagnosticar e resolver problemas",ex:"Let me troubleshoot the issue.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"trábulshuut"},
+{en:"update",pt:"atualização",ex:"Run the system update.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"ápdêit"},
+{en:"virtual machine",pt:"máquina virtual",ex:"Run it in a virtual machine.",sub:"TI",cat:"Técnico",tags:["técnico","TI"],pr:"vérchuel mashín"},
 
 // ─── TÉCNICO — POLICIAL ───
-{en:"arrest warrant",pt:"mandado de prisão",ex:"The judge issued an arrest warrant.",tags:["técnico","policial"],pr:"arést uórent"},
-{en:"chain of custody",pt:"cadeia de custódia",ex:"Maintain the chain of custody.",tags:["técnico","policial"],pr:"tchêin ov kástodi"},
-{en:"criminal record",pt:"antecedentes criminais",ex:"He has a criminal record.",tags:["técnico","policial"],pr:"kríminel rékord"},
-{en:"evidence",pt:"evidência / prova",ex:"The evidence was collected at the scene.",tags:["técnico","policial"],pr:"évidens"},
-{en:"eyewitness",pt:"testemunha ocular",ex:"The eyewitness identified the suspect.",tags:["técnico","policial"],pr:"ái-uítnes"},
-{en:"forensics",pt:"medicina legal / forense",ex:"Forensics analyzed the fingerprints.",tags:["técnico","policial"],pr:"forénziks"},
-{en:"homicide",pt:"homicídio",ex:"The homicide unit is investigating.",tags:["técnico","policial"],pr:"hómisáid"},
-{en:"interrogation",pt:"interrogatório",ex:"The interrogation lasted two hours.",tags:["técnico","policial"],pr:"interogêishon"},
-{en:"jurisdiction",pt:"jurisdição",ex:"This is outside our jurisdiction.",tags:["técnico","policial"],pr:"djurisdíkshon"},
-{en:"lawsuit",pt:"processo judicial",ex:"They filed a lawsuit.",tags:["técnico","policial"],pr:"lósut"},
-{en:"misdemeanor",pt:"contravenção / delito menor",ex:"It's a misdemeanor, not a felony.",tags:["técnico","policial"],pr:"misdimínor"},
-{en:"felony",pt:"crime grave",ex:"Armed robbery is a felony.",tags:["técnico","policial"],pr:"féloni"},
-{en:"parole",pt:"liberdade condicional",ex:"He was released on parole.",tags:["técnico","policial"],pr:"paróul"},
-{en:"search warrant",pt:"mandado de busca",ex:"Officers executed the search warrant.",tags:["técnico","policial"],pr:"sértch uórent"},
-{en:"suspect",pt:"suspeito",ex:"The suspect fled the scene.",tags:["técnico","policial"],pr:"sáspekt"},
-{en:"testimony",pt:"testemunho / depoimento",ex:"Her testimony was crucial.",tags:["técnico","policial"],pr:"téstimouni"},
-{en:"undercover",pt:"disfarçado / à paisana",ex:"The undercover officer gathered evidence.",tags:["técnico","policial"],pr:"ánder-káver"},
-{en:"verdict",pt:"veredicto",ex:"The jury reached a verdict.",tags:["técnico","policial"],pr:"vérdikt"},
-{en:"witness",pt:"testemunha",ex:"The witness saw everything.",tags:["técnico","policial"],pr:"uítnes"},
-{en:"forensic evidence",pt:"evidência forense",ex:"Forensic evidence proved his guilt.",tags:["técnico","policial"],pr:"forénzik évidens"},
+{en:"arrest warrant",pt:"mandado de prisão",ex:"The judge issued an arrest warrant.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"arést uórent"},
+{en:"chain of custody",pt:"cadeia de custódia",ex:"Maintain the chain of custody.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"tchêin ov kástodi"},
+{en:"criminal record",pt:"antecedentes criminais",ex:"He has a criminal record.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"kríminel rékord"},
+{en:"evidence",pt:"evidência / prova",ex:"The evidence was collected at the scene.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"évidens"},
+{en:"eyewitness",pt:"testemunha ocular",ex:"The eyewitness identified the suspect.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"ái-uítnes"},
+{en:"forensics",pt:"medicina legal / forense",ex:"Forensics analyzed the fingerprints.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"forénziks"},
+{en:"homicide",pt:"homicídio",ex:"The homicide unit is investigating.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"hómisáid"},
+{en:"interrogation",pt:"interrogatório",ex:"The interrogation lasted two hours.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"interogêishon"},
+{en:"jurisdiction",pt:"jurisdição",ex:"This is outside our jurisdiction.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"djurisdíkshon"},
+{en:"lawsuit",pt:"processo judicial",ex:"They filed a lawsuit.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"lósut"},
+{en:"misdemeanor",pt:"contravenção / delito menor",ex:"It's a misdemeanor, not a felony.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"misdimínor"},
+{en:"felony",pt:"crime grave",ex:"Armed robbery is a felony.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"féloni"},
+{en:"parole",pt:"liberdade condicional",ex:"He was released on parole.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"paróul"},
+{en:"search warrant",pt:"mandado de busca",ex:"Officers executed the search warrant.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"sértch uórent"},
+{en:"suspect",pt:"suspeito",ex:"The suspect fled the scene.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"sáspekt"},
+{en:"testimony",pt:"testemunho / depoimento",ex:"Her testimony was crucial.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"téstimouni"},
+{en:"undercover",pt:"disfarçado / à paisana",ex:"The undercover officer gathered evidence.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"ánder-káver"},
+{en:"verdict",pt:"veredicto",ex:"The jury reached a verdict.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"vérdikt"},
+{en:"witness",pt:"testemunha",ex:"The witness saw everything.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"uítnes"},
+{en:"forensic evidence",pt:"evidência forense",ex:"Forensic evidence proved his guilt.",sub:"Policial",cat:"Técnico",tags:["técnico","policial"],pr:"forénzik évidens"},
 
 // ─── TÉCNICO — JURÍDICO ───
-{en:"affidavit",pt:"declaração juramentada",ex:"Submit a signed affidavit.",tags:["técnico","jurídico"],pr:"éfidêivit"},
-{en:"amendment",pt:"emenda / alteração legal",ex:"The amendment changed the law.",tags:["técnico","jurídico"],pr:"améndment"},
-{en:"appeal",pt:"recurso / apelação",ex:"They filed an appeal.",tags:["técnico","jurídico"],pr:"apíl"},
-{en:"attorney",pt:"advogado",ex:"Contact your attorney.",tags:["técnico","jurídico"],pr:"atérni"},
-{en:"bail",pt:"fiança",ex:"Bail was set at $10,000.",tags:["técnico","jurídico"],pr:"bêil"},
-{en:"clause",pt:"cláusula",ex:"Read the confidentiality clause.",tags:["técnico","jurídico"],pr:"klóz"},
-{en:"contract",pt:"contrato",ex:"Sign the contract.",tags:["técnico","jurídico"],pr:"kóntrékt"},
-{en:"defendant",pt:"réu / acusado",ex:"The defendant pleaded not guilty.",tags:["técnico","jurídico"],pr:"diféndent"},
-{en:"due process",pt:"devido processo legal",ex:"Everyone has the right to due process.",tags:["técnico","jurídico"],pr:"diú próses"},
-{en:"injunction",pt:"liminar / ordem judicial",ex:"The court issued an injunction.",tags:["técnico","jurídico"],pr:"indjánkshon"},
-{en:"liable",pt:"responsável legalmente",ex:"The company is liable for damages.",tags:["técnico","jurídico"],pr:"láiebl"},
-{en:"litigation",pt:"litígio / processo judicial",ex:"Avoid litigation when possible.",tags:["técnico","jurídico"],pr:"litigêishon"},
-{en:"plaintiff",pt:"autor / quem entra com processo",ex:"The plaintiff filed the lawsuit.",tags:["técnico","jurídico"],pr:"plêintif"},
-{en:"prosecution",pt:"promotoria / acusação",ex:"The prosecution presented evidence.",tags:["técnico","jurídico"],pr:"prosikiúshon"},
-{en:"subpoena",pt:"intimação / citação judicial",ex:"He received a subpoena.",tags:["técnico","jurídico"],pr:"sabpína"},
+{en:"affidavit",pt:"declaração juramentada",ex:"Submit a signed affidavit.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"éfidêivit"},
+{en:"amendment",pt:"emenda / alteração legal",ex:"The amendment changed the law.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"améndment"},
+{en:"appeal",pt:"recurso / apelação",ex:"They filed an appeal.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"apíl"},
+{en:"attorney",pt:"advogado",ex:"Contact your attorney.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"atérni"},
+{en:"bail",pt:"fiança",ex:"Bail was set at $10,000.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"bêil"},
+{en:"clause",pt:"cláusula",ex:"Read the confidentiality clause.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"klóz"},
+{en:"contract",pt:"contrato",ex:"Sign the contract.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"kóntrékt"},
+{en:"defendant",pt:"réu / acusado",ex:"The defendant pleaded not guilty.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"diféndent"},
+{en:"due process",pt:"devido processo legal",ex:"Everyone has the right to due process.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"diú próses"},
+{en:"injunction",pt:"liminar / ordem judicial",ex:"The court issued an injunction.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"indjánkshon"},
+{en:"liable",pt:"responsável legalmente",ex:"The company is liable for damages.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"láiebl"},
+{en:"litigation",pt:"litígio / processo judicial",ex:"Avoid litigation when possible.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"litigêishon"},
+{en:"plaintiff",pt:"autor / quem entra com processo",ex:"The plaintiff filed the lawsuit.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"plêintif"},
+{en:"prosecution",pt:"promotoria / acusação",ex:"The prosecution presented evidence.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"prosikiúshon"},
+{en:"subpoena",pt:"intimação / citação judicial",ex:"He received a subpoena.",sub:"Jurídico",cat:"Técnico",tags:["técnico","jurídico"],pr:"sabpína"},
 
 // ─── TÉCNICO — MÉDICO ───
-{en:"anesthesia",pt:"anestesia",ex:"General anesthesia was used.",tags:["técnico","médico"],pr:"énesthízia"},
-{en:"diagnosis",pt:"diagnóstico",ex:"The diagnosis was confirmed.",tags:["técnico","médico"],pr:"dáiagnósis"},
-{en:"dosage",pt:"dosagem",ex:"Follow the correct dosage.",tags:["técnico","médico"],pr:"dôusidj"},
-{en:"emergency room",pt:"pronto-socorro",ex:"Go to the emergency room.",tags:["técnico","médico"],pr:"imérdjensi rúm"},
-{en:"hypertension",pt:"hipertensão",ex:"He has hypertension.",tags:["técnico","médico"],pr:"háipertenshon"},
-{en:"inflammation",pt:"inflamação",ex:"There's inflammation in the joint.",tags:["técnico","médico"],pr:"inflémêishon"},
-{en:"prescription",pt:"receita médica",ex:"You need a prescription for this.",tags:["técnico","médico"],pr:"priskríption"},
-{en:"symptom",pt:"sintoma",ex:"What are your symptoms?",tags:["técnico","médico"],pr:"símtom"},
-{en:"treatment",pt:"tratamento",ex:"The treatment was successful.",tags:["técnico","médico"],pr:"trítment"},
-{en:"vaccine",pt:"vacina",ex:"Get the flu vaccine.",tags:["técnico","médico"],pr:"véksin"},
+{en:"anesthesia",pt:"anestesia",ex:"General anesthesia was used.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"énesthízia"},
+{en:"diagnosis",pt:"diagnóstico",ex:"The diagnosis was confirmed.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"dáiagnósis"},
+{en:"dosage",pt:"dosagem",ex:"Follow the correct dosage.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"dôusidj"},
+{en:"emergency room",pt:"pronto-socorro",ex:"Go to the emergency room.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"imérdjensi rúm"},
+{en:"hypertension",pt:"hipertensão",ex:"He has hypertension.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"háipertenshon"},
+{en:"inflammation",pt:"inflamação",ex:"There's inflammation in the joint.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"inflémêishon"},
+{en:"prescription",pt:"receita médica",ex:"You need a prescription for this.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"priskríption"},
+{en:"symptom",pt:"sintoma",ex:"What are your symptoms?",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"símtom"},
+{en:"treatment",pt:"tratamento",ex:"The treatment was successful.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"trítment"},
+{en:"vaccine",pt:"vacina",ex:"Get the flu vaccine.",sub:"Médico",cat:"Técnico",tags:["técnico","médico"],pr:"véksin"},
 
 // ─── COLOQUIAL ───
-{en:"awesome",pt:"incrível / demais",ex:"That movie was awesome!",tags:["coloquial"],pr:"óssom"},
-{en:"bummer",pt:"que chato / que pena",ex:"That's a bummer, man.",tags:["coloquial"],pr:"bámer"},
-{en:"catch up",pt:"se atualizar / colocar o papo em dia",ex:"Let's catch up over coffee.",tags:["coloquial"],pr:"kétch áp"},
-{en:"chill",pt:"relaxar / tranquilo",ex:"Just chill, it's fine.",tags:["coloquial"],pr:"tchil"},
-{en:"dude",pt:"cara / mano",ex:"Dude, that was crazy!",tags:["coloquial"],pr:"diúd"},
-{en:"freak out",pt:"surtar / entrar em pânico",ex:"Don't freak out about it.",tags:["coloquial"],pr:"frík áut"},
-{en:"hang out",pt:"sair / passar tempo com alguém",ex:"Want to hang out this weekend?",tags:["coloquial"],pr:"réng áut"},
-{en:"hyped",pt:"animado / empolgado",ex:"I'm so hyped for the game!",tags:["coloquial"],pr:"háipt"},
-{en:"lame",pt:"sem graça / chato",ex:"That excuse is so lame.",tags:["coloquial"],pr:"lêim"},
-{en:"laid-back",pt:"descontraído / tranquilo",ex:"He's a really laid-back guy.",tags:["coloquial"],pr:"lêid-bék"},
-{en:"my bad",pt:"minha culpa / desculpa",ex:"Oops, my bad!",tags:["coloquial"],pr:"mái béd"},
-{en:"nerd",pt:"nerd / estudioso",ex:"He's a total tech nerd.",tags:["coloquial"],pr:"nérd"},
-{en:"nuts",pt:"louco / maluco",ex:"That idea is nuts!",tags:["coloquial"],pr:"náts"},
-{en:"pumped",pt:"animado / empolgado",ex:"I'm pumped for the weekend!",tags:["coloquial"],pr:"pámt"},
-{en:"sketchy",pt:"suspeito / duvidoso",ex:"That neighborhood looks sketchy.",tags:["coloquial"],pr:"skétchi"},
-{en:"slack off",pt:"relaxar / enrolar no trabalho",ex:"Stop slacking off!",tags:["coloquial"],pr:"slék óf"},
-{en:"solid",pt:"ótimo / confiável",ex:"That's a solid plan.",tags:["coloquial"],pr:"sólid"},
-{en:"stressed out",pt:"estressado",ex:"I'm totally stressed out.",tags:["coloquial"],pr:"strésd áut"},
-{en:"vibe",pt:"sensação / energia / clima",ex:"This place has a great vibe.",tags:["coloquial"],pr:"váib"},
-{en:"wasted",pt:"destruído / exausto / bêbado",ex:"I'm wasted after work.",tags:["coloquial"],pr:"uêisted"},
-{en:"weirdo",pt:"esquisito / maluco",ex:"Don't be a weirdo.",tags:["coloquial"],pr:"uírdou"},
-{en:"wrap up",pt:"encerrar / finalizar",ex:"Let's wrap up the meeting.",tags:["coloquial"],pr:"rép áp"},
-{en:"yeah",pt:"sim / é isso",ex:"Yeah, that makes sense.",tags:["coloquial"],pr:"iéa"},
-{en:"you bet",pt:"pode apostar / com certeza",ex:"Will you help? You bet!",tags:["coloquial"],pr:"iú bét"},
-{en:"zilch",pt:"nada / zero",ex:"I got zilch from that deal.",tags:["coloquial"],pr:"zilch"},
+{en:"awesome",pt:"incrível / demais",ex:"That movie was awesome!",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"óssom"},
+{en:"bummer",pt:"que chato / que pena",ex:"That's a bummer, man.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"bámer"},
+{en:"catch up",pt:"se atualizar / colocar o papo em dia",ex:"Let's catch up over coffee.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"kétch áp"},
+{en:"chill",pt:"relaxar / tranquilo",ex:"Just chill, it's fine.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"tchil"},
+{en:"dude",pt:"cara / mano",ex:"Dude, that was crazy!",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"diúd"},
+{en:"freak out",pt:"surtar / entrar em pânico",ex:"Don't freak out about it.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"frík áut"},
+{en:"hang out",pt:"sair / passar tempo com alguém",ex:"Want to hang out this weekend?",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"réng áut"},
+{en:"hyped",pt:"animado / empolgado",ex:"I'm so hyped for the game!",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"háipt"},
+{en:"lame",pt:"sem graça / chato",ex:"That excuse is so lame.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"lêim"},
+{en:"laid-back",pt:"descontraído / tranquilo",ex:"He's a really laid-back guy.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"lêid-bék"},
+{en:"my bad",pt:"minha culpa / desculpa",ex:"Oops, my bad!",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"mái béd"},
+{en:"nerd",pt:"nerd / estudioso",ex:"He's a total tech nerd.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"nérd"},
+{en:"nuts",pt:"louco / maluco",ex:"That idea is nuts!",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"náts"},
+{en:"pumped",pt:"animado / empolgado",ex:"I'm pumped for the weekend!",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"pámt"},
+{en:"sketchy",pt:"suspeito / duvidoso",ex:"That neighborhood looks sketchy.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"skétchi"},
+{en:"slack off",pt:"relaxar / enrolar no trabalho",ex:"Stop slacking off!",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"slék óf"},
+{en:"solid",pt:"ótimo / confiável",ex:"That's a solid plan.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"sólid"},
+{en:"stressed out",pt:"estressado",ex:"I'm totally stressed out.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"strésd áut"},
+{en:"vibe",pt:"sensação / energia / clima",ex:"This place has a great vibe.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"váib"},
+{en:"wasted",pt:"destruído / exausto / bêbado",ex:"I'm wasted after work.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"uêisted"},
+{en:"weirdo",pt:"esquisito / maluco",ex:"Don't be a weirdo.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"uírdou"},
+{en:"wrap up",pt:"encerrar / finalizar",ex:"Let's wrap up the meeting.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"rép áp"},
+{en:"yeah",pt:"sim / é isso",ex:"Yeah, that makes sense.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"iéa"},
+{en:"you bet",pt:"pode apostar / com certeza",ex:"Will you help? You bet!",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"iú bét"},
+{en:"zilch",pt:"nada / zero",ex:"I got zilch from that deal.",sub:"Geral",cat:"Coloquial",tags:["coloquial"],pr:"zilch"},
 
 // ─── CULTO ───
-{en:"ambiguous",pt:"ambíguo",ex:"The law is ambiguous on this point.",tags:["culto"],pr:"embíguos"},
-{en:"ameliorate",pt:"melhorar / amenizar",ex:"Measures to ameliorate the situation.",tags:["culto"],pr:"emílioreît"},
-{en:"analogous",pt:"análogo / semelhante",ex:"The situation is analogous to last year.",tags:["culto"],pr:"enélogos"},
-{en:"articulate",pt:"articulado / expressar claramente",ex:"She's very articulate.",tags:["culto"],pr:"artíkiulet"},
-{en:"benchmark",pt:"referência / padrão de comparação",ex:"This sets a new benchmark.",tags:["culto"],pr:"bénch-márk"},
-{en:"candid",pt:"franco / sincero",ex:"Let me be candid with you.",tags:["culto"],pr:"kéndid"},
-{en:"coherent",pt:"coerente / lógico",ex:"Present a coherent argument.",tags:["culto"],pr:"kouhírent"},
-{en:"comprehensive",pt:"abrangente / completo",ex:"A comprehensive analysis.",tags:["culto"],pr:"komprehénsiv"},
-{en:"concise",pt:"conciso / direto",ex:"Please be concise.",tags:["culto"],pr:"konsáis"},
-{en:"consensus",pt:"consenso",ex:"We reached a consensus.",tags:["culto"],pr:"konsénsos"},
-{en:"discrepancy",pt:"discrepância / diferença",ex:"There's a discrepancy in the data.",tags:["culto"],pr:"diskrépansi"},
-{en:"eloquent",pt:"eloquente",ex:"An eloquent speech.",tags:["culto"],pr:"élokuent"},
-{en:"empirical",pt:"empírico / baseado em evidências",ex:"Empirical evidence supports this.",tags:["culto"],pr:"empírikel"},
-{en:"endeavor",pt:"empenho / esforço",ex:"It was a noble endeavor.",tags:["culto"],pr:"endévor"},
-{en:"exacerbate",pt:"exacerbar / piorar",ex:"This will exacerbate the problem.",tags:["culto"],pr:"ekséserbêit"},
-{en:"facilitate",pt:"facilitar",ex:"Technology facilitates communication.",tags:["culto"],pr:"fasílitêit"},
-{en:"fundamental",pt:"fundamental / essencial",ex:"This is a fundamental right.",tags:["culto"],pr:"fandaméntel"},
-{en:"hypothesis",pt:"hipótese",ex:"Test the hypothesis.",tags:["culto"],pr:"haipóthesis"},
-{en:"implication",pt:"implicação / consequência",ex:"Consider the implications.",tags:["culto"],pr:"implikêishon"},
-{en:"inherent",pt:"inerente / intrínseco",ex:"There are inherent risks.",tags:["culto"],pr:"inhírent"},
-{en:"integrity",pt:"integridade",ex:"Act with integrity.",tags:["culto"],pr:"intégriti"},
-{en:"mandatory",pt:"obrigatório",ex:"Attendance is mandatory.",tags:["culto"],pr:"méndatori"},
-{en:"nuance",pt:"nuance / detalhe sutil",ex:"The nuance of the argument.",tags:["culto"],pr:"niúáns"},
-{en:"paradigm",pt:"paradigma / modelo",ex:"A paradigm shift in thinking.",tags:["culto"],pr:"péradáim"},
-{en:"prerequisite",pt:"pré-requisito",ex:"Experience is a prerequisite.",tags:["culto"],pr:"prirékuizit"},
-{en:"proactive",pt:"proativo",ex:"Be proactive about your health.",tags:["culto"],pr:"proéktiv"},
-{en:"rationale",pt:"justificativa / fundamento",ex:"What's the rationale behind this?",tags:["culto"],pr:"réshonél"},
-{en:"rhetoric",pt:"retórica",ex:"Empty rhetoric won't help.",tags:["culto"],pr:"rétoric"},
-{en:"scrutiny",pt:"escrutínio / análise detalhada",ex:"Under public scrutiny.",tags:["culto"],pr:"skrútini"},
-{en:"substantial",pt:"substancial / considerável",ex:"A substantial improvement.",tags:["culto"],pr:"sabsténshel"},
-{en:"transparent",pt:"transparente",ex:"Be transparent about the process.",tags:["culto"],pr:"trenséprent"},
-{en:"unprecedented",pt:"sem precedentes",ex:"An unprecedented situation.",tags:["culto"],pr:"anprésidentid"},
-{en:"versatile",pt:"versátil",ex:"She's a versatile professional.",tags:["culto"],pr:"vérsatil"},
-{en:"viable",pt:"viável",ex:"Is this a viable solution?",tags:["culto"],pr:"váiebl"},
-{en:"yield",pt:"render / produzir / ceder",ex:"The investment will yield results.",tags:["culto"],pr:"iíld"},
+{en:"ambiguous",pt:"ambíguo",ex:"The law is ambiguous on this point.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"embíguos"},
+{en:"ameliorate",pt:"melhorar / amenizar",ex:"Measures to ameliorate the situation.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"emílioreît"},
+{en:"analogous",pt:"análogo / semelhante",ex:"The situation is analogous to last year.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"enélogos"},
+{en:"articulate",pt:"articulado / expressar claramente",ex:"She's very articulate.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"artíkiulet"},
+{en:"benchmark",pt:"referência / padrão de comparação",ex:"This sets a new benchmark.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"bénch-márk"},
+{en:"candid",pt:"franco / sincero",ex:"Let me be candid with you.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"kéndid"},
+{en:"coherent",pt:"coerente / lógico",ex:"Present a coherent argument.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"kouhírent"},
+{en:"comprehensive",pt:"abrangente / completo",ex:"A comprehensive analysis.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"komprehénsiv"},
+{en:"concise",pt:"conciso / direto",ex:"Please be concise.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"konsáis"},
+{en:"consensus",pt:"consenso",ex:"We reached a consensus.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"konsénsos"},
+{en:"discrepancy",pt:"discrepância / diferença",ex:"There's a discrepancy in the data.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"diskrépansi"},
+{en:"eloquent",pt:"eloquente",ex:"An eloquent speech.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"élokuent"},
+{en:"empirical",pt:"empírico / baseado em evidências",ex:"Empirical evidence supports this.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"empírikel"},
+{en:"endeavor",pt:"empenho / esforço",ex:"It was a noble endeavor.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"endévor"},
+{en:"exacerbate",pt:"exacerbar / piorar",ex:"This will exacerbate the problem.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"ekséserbêit"},
+{en:"facilitate",pt:"facilitar",ex:"Technology facilitates communication.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"fasílitêit"},
+{en:"fundamental",pt:"fundamental / essencial",ex:"This is a fundamental right.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"fandaméntel"},
+{en:"hypothesis",pt:"hipótese",ex:"Test the hypothesis.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"haipóthesis"},
+{en:"implication",pt:"implicação / consequência",ex:"Consider the implications.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"implikêishon"},
+{en:"inherent",pt:"inerente / intrínseco",ex:"There are inherent risks.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"inhírent"},
+{en:"integrity",pt:"integridade",ex:"Act with integrity.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"intégriti"},
+{en:"mandatory",pt:"obrigatório",ex:"Attendance is mandatory.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"méndatori"},
+{en:"nuance",pt:"nuance / detalhe sutil",ex:"The nuance of the argument.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"niúáns"},
+{en:"paradigm",pt:"paradigma / modelo",ex:"A paradigm shift in thinking.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"péradáim"},
+{en:"prerequisite",pt:"pré-requisito",ex:"Experience is a prerequisite.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"prirékuizit"},
+{en:"proactive",pt:"proativo",ex:"Be proactive about your health.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"proéktiv"},
+{en:"rationale",pt:"justificativa / fundamento",ex:"What's the rationale behind this?",sub:"Formal",cat:"Culto",tags:["culto"],pr:"réshonél"},
+{en:"rhetoric",pt:"retórica",ex:"Empty rhetoric won't help.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"rétoric"},
+{en:"scrutiny",pt:"escrutínio / análise detalhada",ex:"Under public scrutiny.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"skrútini"},
+{en:"substantial",pt:"substancial / considerável",ex:"A substantial improvement.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"sabsténshel"},
+{en:"transparent",pt:"transparente",ex:"Be transparent about the process.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"trenséprent"},
+{en:"unprecedented",pt:"sem precedentes",ex:"An unprecedented situation.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"anprésidentid"},
+{en:"versatile",pt:"versátil",ex:"She's a versatile professional.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"vérsatil"},
+{en:"viable",pt:"viável",ex:"Is this a viable solution?",sub:"Formal",cat:"Culto",tags:["culto"],pr:"váiebl"},
+{en:"yield",pt:"render / produzir / ceder",ex:"The investment will yield results.",sub:"Formal",cat:"Culto",tags:["culto"],pr:"iíld"},
 ];
 
 // ─── DICIONÁRIO ───
@@ -1035,10 +1061,10 @@ function renderDicio() {
   var q = inp ? inp.value : '';
   var dir = window._dicioDir || 'en-pt';
   var sub = window._dicioSub || 'Todos';
-  var subs = ['Todos','TI','Policial','Jurídico','Geral','Formal','Geografia'];
-  var tagClass = {TI:'tag-ti',Policial:'tag-policial','Jurídico':'tag-juridico',Geral:'tag-coloquial',Formal:'tag-culto',Geografia:'tag-ti'};
+  var subs = ['Todos','TI','Policial','Jurídico','Médico','Geral','Formal'];
+  var tagClass = {TI:'tag-ti',Policial:'tag-policial','Jurídico':'tag-juridico','Médico':'tag-ti',Geral:'tag-coloquial',Formal:'tag-culto'};
   var filtered = DICIONARIO.filter(function(d) {
-    var matchSub = sub === 'Todos' || d.sub === sub || d.cat === sub;
+    var matchSub = sub === 'Todos' || d.sub === sub || d.cat === sub || (d.tags && d.tags.indexOf(sub) >= 0);
     if (!q) return matchSub;
     if (dir === 'en-pt') return matchSub && d.en.toLowerCase().indexOf(q.toLowerCase()) >= 0;
     return matchSub && d.pt.toLowerCase().indexOf(q.toLowerCase()) >= 0;
